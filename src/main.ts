@@ -547,13 +547,41 @@ function playScreen(st: Stage) {
     hint,
     wrap,
     h('div', { class: 'controls' }, bBlank, bInsert, bTurn),
+    h('div', {
+      class: 'kbd-hint',
+      html: 'キー操作：<kbd>Space</kbd> 差し込む／抜く ・ <kbd>R</kbd> 回す ・ <kbd>N</kbd> 新しいブランク ・ <kbd>Esc</kbd> 一覧へ',
+    }),
   );
+  const onKey = (e: KeyboardEvent) => {
+    if (app.querySelector('.modal-bg')) {
+      if (e.key === 'Enter' || e.key === ' ') {
+        const b = app.querySelector<HTMLButtonElement>('.modal .btn.primary');
+        if (b) {
+          e.preventDefault();
+          b.click();
+        }
+      }
+      return;
+    }
+    if (e.key === ' ' || e.key === 'Enter') {
+      e.preventDefault();
+      if (!bInsert.disabled) bInsert.click();
+    } else if (e.key === 'r' || e.key === 'R' || e.key === 'ArrowUp') {
+      if (!bTurn.disabled) bTurn.click();
+    } else if (e.key === 'n' || e.key === 'N') {
+      if (!bBlank.disabled) bBlank.click();
+    } else if (e.key === 'Escape') {
+      stageScreen(ch);
+    }
+  };
+  window.addEventListener('keydown', onKey);
   show(el);
   resize();
   refresh();
   cleanup = () => {
     cancelAnimationFrame(raf);
     ro.disconnect();
+    window.removeEventListener('keydown', onKey);
   };
 
   if (idx === 0 && !save.seenIntro[ch.id]) {

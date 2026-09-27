@@ -38,11 +38,13 @@ npm install
 npm run dev        # http://localhost:5173
 npm test           # 全ステージが解けること等のテスト
 npm run build      # dist/ に静的ファイルを出力
+npm run build:single  # dist/lock-mechanics.html に1ファイル版を出力
 ```
 
 - `?stage=4-2` でステージへ直接移動、`?unlock` で全ステージ解放（デバッグ用）
 - 画像・音声アセットなし：描画は Canvas 2D、効果音は Web Audio で合成
 - 進行状況は `localStorage` に保存
+- PC ではキー操作可：Space 差し込む／抜く、R 回す、N 新しいブランク、Esc 一覧へ
 
 ### 構成
 

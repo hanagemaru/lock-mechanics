@@ -141,7 +141,7 @@ export abstract class Mechanism {
           this.phase = 'open';
           this.pt = 0;
           sfx.open();
-          if (navigator.vibrate) navigator.vibrate([20, 40, 60]);
+          buzz([20, 40, 60]);
           this.host.changed();
         }
         break;
@@ -159,7 +159,7 @@ export abstract class Mechanism {
           }
           if (this.pt - dt < a) {
             sfx.thunk();
-            if (navigator.vibrate) navigator.vibrate(30);
+            buzz(30);
           }
         } else this.turn = stop * (1 - clamp((this.pt - a - hold) / (d - a - hold), 0, 1));
         this.onTurnStep(prev, this.turn);
@@ -186,3 +186,11 @@ export abstract class Mechanism {
 }
 
 const easeOutQuad = (t: number) => 1 - (1 - t) * (1 - t);
+
+function buzz(p: number | number[]) {
+  try {
+    navigator.vibrate?.(p);
+  } catch {
+    /* not allowed */
+  }
+}
