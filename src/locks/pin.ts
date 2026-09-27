@@ -262,7 +262,7 @@ export class PinLock extends Mechanism {
 
     if (this.vis === 'window') {
       drawCover(g, x0, PIN.chamberTop - 6, x1 - x0, PIN.shear - 16 - (PIN.chamberTop - 6));
-      drawCover(g, x0, PIN.shear + 16, x1 - x0, PIN.bladeTop - 10 - (PIN.shear + 16));
+      drawCover(g, x0, PIN.shear + 16, x1 - x0, PIN.plugBottom - (PIN.shear + 16));
       text(g, 'のぞき窓', x0 + 30, PIN.shear + 24, { size: 9, color: C.sub });
     } else if (this.vis === 'hidden') {
       drawCover(g, x0, PIN.chamberTop - 6, x1 - x0, PIN.plugBottom - PIN.chamberTop + 6, '内部は見えない');

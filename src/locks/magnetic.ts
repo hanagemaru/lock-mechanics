@@ -90,7 +90,7 @@ export class MagneticLock extends PinLock {
 
   protected drawEditor(g: G) {
     const ed = this.phase === 'edit';
-    drawDivider(g, 410, W, ed ? '鍵の加工台（山を削る＋磁石をタップで N→S→なし）' : '');
+    drawDivider(g, 428, W, ed ? '鍵の加工台（山を削る＋磁石をタップで N→S→なし）' : '');
     if (ed) this.key.drawKey(g, 0, PIN.editTop, { editing: true, showCode: true });
   }
 
@@ -126,8 +126,7 @@ export class MagneticLock extends PinLock {
     g.globalAlpha = 0.9;
     g.fillRect(PIN.face + 4, ROT_Y - 26 + drop, W - 36 - PIN.face, 5);
     g.globalAlpha = 1;
-    text(g, '磁気ローター', W - 34, ROT_Y + 18, { size: 9, color: C.sub, align: 'right' });
-    text(g, '黄線＝切り欠き', W - 34, ROT_Y + 6, { size: 9, color: C.shear, align: 'right' });
+    text(g, '磁気ローター：黄線＝切り欠き（真上を向けばOK）', PIN.face + 2, ROT_Y + 38, { size: 9, color: C.shear, align: 'left' });
     this.xs.forEach((x, i) => {
       const a = this.rotorAngle(i);
       const r = 14;
