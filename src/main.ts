@@ -6,6 +6,7 @@ import { W, H, type Mechanism, type Host } from './core/mechanism';
 import { createMechanism } from './locks';
 import { drawChapterIcon, drawTitleArt } from './ui/art';
 import { learnNotes } from './ui/learn';
+import { randomStage } from './random';
 
 const app = document.getElementById('app')!;
 sfx.setMuted(save.muted);
@@ -198,6 +199,20 @@ function stageScreen(ch: Chapter) {
       ),
     );
   });
+  const freeOpen = UNLOCK_ALL || clearedCount(ch) >= ch.stages.length - 1;
+  const free = h(
+    'button',
+    {
+      class: 'btn wide',
+      style: 'width:100%;margin-top:14px',
+      disabled: !freeOpen,
+      onclick: () => {
+        sfx.tap();
+        playScreen(randomStage(ch.kind));
+      },
+    },
+    freeOpen ? '🎲 フリープレイ（ランダム生成）' : '🔒 フリープレイ：この章をクリアで解放',
+  );
   show(
     h(
       'div',
@@ -208,7 +223,7 @@ function stageScreen(ch: Chapter) {
         h('button', { class: 'iconbtn', onclick: () => chapterScreen(), 'aria-label': '戻る' }, '‹'),
         h('h2', {}, ch.name, h('small', {}, ch.en)),
       ),
-      h('div', { class: 'scroll' }, explainBlock(ch), grid),
+      h('div', { class: 'scroll' }, explainBlock(ch), grid, free),
     ),
   );
 }
@@ -233,8 +248,9 @@ function computeStars(st: Stage, tries: number, blanks: number) {
 }
 
 function playScreen(st: Stage) {
-  const ch = chapters.find((c) => c.stages.includes(st))!;
+  const ch = chapters.find((c) => c.kind === st.kind)!;
   const idx = ch.stages.indexOf(st);
+  const isFree = idx < 0;
   let tries = 0;
   let blanks = 1;
   let over = false;
@@ -388,6 +404,33 @@ function playScreen(st: Stage) {
   }
 
   function onOpened() {
+    if (isFree) {
+      const m = modal(
+        h(
+          'div',
+          { class: 'modal' },
+          h('h3', { style: 'text-align:center' }, '開錠！'),
+          h('div', { class: 'stats', html: `<span>試し挿し <b>${tries}</b> 回</span><span>ブランク <b>${blanks}</b> 本</span>` }),
+          h(
+            'div',
+            { class: 'row' },
+            h('button', { class: 'btn', onclick: () => stageScreen(ch) }, '一覧へ'),
+            h(
+              'button',
+              {
+                class: 'btn primary',
+                onclick: () => {
+                  m.remove();
+                  playScreen(randomStage(ch.kind));
+                },
+              },
+              'もう一問 ›',
+            ),
+          ),
+        ),
+      );
+      return;
+    }
     const stars = computeStars(st, tries, blanks);
     const first = !(save.stars[st.id] > 0);
     recordStars(st.id, stars);
@@ -497,7 +540,7 @@ function playScreen(st: Stage) {
       'div',
       { class: 'topbar' },
       h('button', { class: 'iconbtn', onclick: () => stageScreen(ch), 'aria-label': '戻る' }, '‹'),
-      h('h2', {}, `${st.id} ${st.title}`, h('small', {}, ch.name)),
+      h('h2', {}, isFree ? `🎲 ${st.title}` : `${st.id} ${st.title}`, h('small', {}, ch.name)),
       h('div', { class: 'counters' }, cTries, cBlanks),
       h('button', { class: 'iconbtn', onclick: showHelp, 'aria-label': 'しくみ' }, '?'),
     ),

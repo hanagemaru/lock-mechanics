@@ -87,3 +87,18 @@ describe('warded connectivity', () => {
     expect(m.cells.every((col) => col.every((x) => !x))).toBe(true);
   });
 });
+
+describe('free play generator', () => {
+  it('produces solvable locks for every kind', async () => {
+    const { randomStage } = await import('../src/random');
+    for (const ch of chapters) {
+      for (let k = 0; k < 30; k++) {
+        const st = randomStage(ch.kind);
+        const m = createMechanism(st, host);
+        expect(m.evaluate().ok).toBe(false);
+        solve(st, m);
+        expect(m.evaluate().ok).toBe(true);
+      }
+    }
+  });
+});
