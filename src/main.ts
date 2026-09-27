@@ -382,13 +382,20 @@ function playScreen(st: Stage) {
   cv.addEventListener('pointerup', up);
   cv.addEventListener('pointercancel', up);
 
+  // dev-only hook for frame captures (stripped from production builds)
+  const dbg = { freeze: false };
+  if (import.meta.env.DEV) (window as unknown as { __play: unknown }).__play = { dbg, mech: () => mech };
   let raf = 0;
   let last = performance.now();
   const loop = (now: number) => {
     const dt = Math.min(0.05, (now - last) / 1000);
     last = now;
-    mech.update(dt);
+    if (!dbg.freeze) mech.update(dt);
     g.setTransform(scale * dpr, 0, 0, scale * dpr, 0, 0);
+    if (mech.shake > 0) {
+      g.clearRect(0, 0, W, H);
+      g.translate(Math.sin(mech.time * 110) * mech.shake * mech.shake * 3, 0);
+    }
     mech.draw(g);
     raf = requestAnimationFrame(loop);
   };

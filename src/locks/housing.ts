@@ -1,4 +1,4 @@
-import { C, type G, rr, vgrad, text, easeOutBack, clamp } from '../core/draw';
+import { C, type G, rr, vgrad, text, easeOutBack, clamp, pinFill } from '../core/draw';
 
 /** Padlock body outline + shackle. lift: 0..1 shackle pop. */
 export function drawPadlock(g: G, x0: number, x1: number, y0: number, y1: number, lift: number) {
@@ -40,45 +40,6 @@ export function drawPadlock(g: G, x0: number, x1: number, y0: number, y1: number
   g.strokeStyle = C.shellEdge;
   g.lineWidth = 1.5;
   g.stroke();
-}
-
-/** Small front view of the keyhole/plug in a corner showing the rotation. */
-export function drawFrontInset(g: G, cx: number, cy: number, r: number, angle: number, label = '正面') {
-  g.save();
-  g.fillStyle = 'rgba(10,15,22,0.7)';
-  g.beginPath();
-  g.arc(cx, cy, r + 6, 0, Math.PI * 2);
-  g.fill();
-  g.fillStyle = C.shell;
-  g.beginPath();
-  g.arc(cx, cy, r + 3, 0, Math.PI * 2);
-  g.fill();
-  g.translate(cx, cy);
-  g.rotate(angle);
-  g.fillStyle = C.plug;
-  g.beginPath();
-  g.arc(0, 0, r - 2, 0, Math.PI * 2);
-  g.fill();
-  g.strokeStyle = C.plugEdge;
-  g.lineWidth = 1;
-  g.stroke();
-  g.fillStyle = C.cavity;
-  // keyway squiggle
-  g.beginPath();
-  g.moveTo(-2, -r * 0.7);
-  g.lineTo(2, -r * 0.7);
-  g.lineTo(2, -r * 0.1);
-  g.lineTo(4, r * 0.1);
-  g.lineTo(2, r * 0.3);
-  g.lineTo(3, r * 0.55);
-  g.lineTo(-3, r * 0.55);
-  g.lineTo(-2, r * 0.3);
-  g.lineTo(-4, r * 0.1);
-  g.lineTo(-2, -r * 0.1);
-  g.closePath();
-  g.fill();
-  g.restore();
-  text(g, label, cx, cy + r + 14, { size: 9, color: C.sub });
 }
 
 export function drawOpenStamp(g: G, cx: number, cy: number, t: number) {
@@ -170,4 +131,157 @@ export function drawGauge(g: G, x0: number, x1: number, ys: number[], label = tr
       if (gap >= 9 || k === 0 || k === ys.length - 1) text(g, String(k), x1 + 7, y, { size: 8, color: 'rgba(255,204,51,0.7)' });
     });
   }
+}
+
+/** rest = no key; set = at the shear line; high = key pin/wafer sticks out; low = driver dips into the plug */
+export type FrontState = 'rest' | 'set' | 'high' | 'low';
+
+/**
+ * End-on view of the cylinder, drawn in the top-right corner. Shows why the
+ * plug can (or cannot) turn: the parts must all sit inside the plug circle.
+ * kind 'pin' shows one pin stack, 'wafer' a wafer plate.
+ */
+export function drawFrontView(
+  g: G,
+  cx: number,
+  cy: number,
+  ang: number,
+  o: { kind: 'pin' | 'wafer'; inKey: boolean; state: FrontState; success: boolean; label?: string },
+) {
+  const Rs = 28;
+  const Rp = 17;
+  const bad = o.state === 'high' || o.state === 'low';
+  g.save();
+  // backdrop
+  g.fillStyle = 'rgba(8,12,18,0.85)';
+  g.beginPath();
+  g.arc(cx, cy, Rs + 5, 0, Math.PI * 2);
+  g.fill();
+  g.strokeStyle = 'rgba(142,160,181,0.35)';
+  g.lineWidth = 1;
+  g.stroke();
+  // shell
+  g.fillStyle = vgrad(g, cy - Rs, cy + Rs, [
+    [0, '#55657a'],
+    [1, '#2d3845'],
+  ]);
+  g.beginPath();
+  g.arc(cx, cy, Rs, 0, Math.PI * 2);
+  g.fill();
+  // shell bores / channels
+  g.fillStyle = C.cavity;
+  if (o.kind === 'pin') g.fillRect(cx - 4, cy - Rs + 3, 8, Rs - Rp - 2);
+  else {
+    g.fillRect(cx - 10, cy - Rp - 5, 20, 6);
+    g.fillRect(cx - 10, cy + Rp - 1, 20, 6);
+  }
+  g.fillStyle = C.cavity;
+  g.beginPath();
+  g.arc(cx, cy, Rp + 0.8, 0, Math.PI * 2);
+  g.fill();
+
+  // --- plug (rotates) ---
+  g.translate(cx, cy);
+  g.rotate(ang);
+  g.fillStyle = vgrad(g, -Rp, Rp, [
+    [0, '#9aaabd'],
+    [1, '#56667a'],
+  ]);
+  g.beginPath();
+  g.arc(0, 0, Rp, 0, Math.PI * 2);
+  g.fill();
+  // keyway (vertical slot)
+  g.fillStyle = C.cavity;
+  g.fillRect(-2.6, -Rp * 0.42, 5.2, Rp * 1.18);
+  if (o.inKey) {
+    g.fillStyle = vgrad(g, -Rp * 0.4, Rp * 0.7, [
+      [0, C.keyNickelLight],
+      [1, C.keyNickelDark],
+    ]);
+    g.fillRect(-1.8, -Rp * 0.38, 3.6, Rp * 1.08);
+  }
+  const keyTop = -Rp * 0.38;
+  // pin/wafer offset: rest = pushed down by the spring (no key), bad = sticks out
+  const off = !o.inKey ? 4.5 : o.state === 'high' ? -4 : o.state === 'low' ? 4 : 0;
+  if (o.kind === 'pin') {
+    g.fillStyle = C.cavity;
+    g.fillRect(-4, -Rp - 1, 8, Rp + keyTop + 1);
+    const pinTop = -Rp + off;
+    const pinBot = o.inKey ? keyTop : keyTop + 4;
+    g.fillStyle = pinFill(g, -3.5, 7, o.state === 'high' ? 'red' : 'brass');
+    g.fillRect(-3.5, Math.max(pinTop, -Rp), 7, pinBot - Math.max(pinTop, -Rp));
+    if (!o.inKey) {
+      // driver pushed down into the plug
+      g.fillStyle = pinFill(g, -3.5, 7, 'steel');
+      g.fillRect(-3.5, -Rp, 7, off);
+    }
+  } else {
+    // wafer plate with a window the key passes through
+    const wy = off;
+    const Wd = Rp * 1.7;
+    const top = -Rp + 1 + wy;
+    const bot = Rp - 1 + wy;
+    g.fillStyle = bad ? '#b45454' : C.brass;
+    g.beginPath();
+    g.rect(-Wd / 2, top, Wd, bot - top);
+    g.rect(-3, top + 6 - wy + (o.inKey ? 0 : 0), 6, Rp * 1.1);
+    g.fill('evenodd');
+  }
+  g.restore();
+
+  // --- static parts over the plug (shell side) ---
+  g.save();
+  if (o.kind === 'pin') {
+    // driver pin + spring in the shell bore
+    const drvBot = cy - Rp + (o.state === 'high' ? -4 : 0);
+    const drvTop = drvBot - 7;
+    g.strokeStyle = C.spring;
+    g.lineWidth = 1;
+    g.beginPath();
+    const sTop = cy - Rs + 4;
+    for (let k = 0; k <= 6; k++) g.lineTo(cx + (k % 2 ? 3 : -3), sTop + ((drvTop - sTop) * k) / 6);
+    g.stroke();
+    g.fillStyle = pinFill(g, cx - 3.5, 7, 'steel');
+    g.fillRect(cx - 3.5, drvTop, 7, drvBot - drvTop);
+    if (o.state === 'high') {
+      // key pin sticking out of the plug into the shell: this is what blocks it
+      g.fillStyle = pinFill(g, cx - 3.5, 7, 'red');
+      g.fillRect(cx - 3.5, cy - Rp - 4, 7, 4.5);
+    } else if (o.state === 'low') {
+      // driver pin dipping below the shear line into the plug
+      g.fillStyle = pinFill(g, cx - 3.5, 7, 'red');
+      g.fillRect(cx - 3.5, drvTop, 7, drvBot - drvTop + 4);
+    }
+  } else if (bad) {
+    g.fillStyle = '#b45454';
+    g.fillRect(cx - 10, cy + Rp - 1, 20, 3.5);
+  }
+  // shear circle
+  g.strokeStyle = o.success ? C.ok : bad ? C.bad : 'rgba(255,204,51,0.8)';
+  g.lineWidth = o.success ? 1.8 : 1.2;
+  g.setLineDash(o.success ? [] : [3, 2]);
+  g.beginPath();
+  g.arc(cx, cy, Rp + 0.5, 0, Math.PI * 2);
+  g.stroke();
+  g.setLineDash([]);
+  // turn arrow
+  if (ang > 0.05) {
+    g.strokeStyle = o.success ? C.ok : C.bad;
+    g.lineWidth = 2;
+    g.beginPath();
+    g.arc(cx, cy, Rs + 2, -Math.PI / 2, -Math.PI / 2 + ang);
+    g.stroke();
+    const ea = -Math.PI / 2 + ang;
+    const ex = cx + Math.cos(ea) * (Rs + 2);
+    const ey = cy + Math.sin(ea) * (Rs + 2);
+    g.fillStyle = g.strokeStyle;
+    g.beginPath();
+    g.moveTo(ex + Math.cos(ea + Math.PI / 2) * 5, ey + Math.sin(ea + Math.PI / 2) * 5);
+    g.lineTo(ex + Math.cos(ea) * 4, ey + Math.sin(ea) * 4);
+    g.lineTo(ex - Math.cos(ea) * 4, ey - Math.sin(ea) * 4);
+    g.closePath();
+    g.fill();
+  }
+  g.restore();
+  text(g, o.label ?? '正面から', cx, cy + Rs + 11, { size: 9, color: C.sub });
 }

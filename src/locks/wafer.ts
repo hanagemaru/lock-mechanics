@@ -3,7 +3,8 @@ import { C, type G, text, rr, hgrad } from '../core/draw';
 import { sfx } from '../core/sfx';
 import { BladeKey } from './bladekey';
 import { keyPose } from './pinview';
-import { drawFrontInset, drawOpenStamp, drawCover, drawGridBg, drawDivider } from './housing';
+import { drawFrontView, drawOpenStamp, drawCover, drawGridBg, drawDivider } from './housing';
+import { rot, layer, extrude, drawPlugBody, drawPin3D, turnEase, turnSounds } from '../core/turn3d';
 
 export interface WaferCfg {
   /** per wafer: [side, depth] side 't' = spring pushes down, key's top edge lifts it; 'b' = pushed up, bottom edge lowers it */
@@ -136,6 +137,10 @@ export class WaferLock extends Mechanism {
     return `点線枠（ウェハー）が上下の黄色い線の内側にぴったり収まるまで削ろう（${okN}/${this.cfg.wafers.length}）`;
   }
 
+  protected onTurnStep(prev: number, cur: number) {
+    turnSounds(prev, cur);
+  }
+
   pointerDown(x: number, y: number) {
     if (!this.editable) return;
     this.key.down(x, y, 0, L.editTop, this.sp);
@@ -156,7 +161,7 @@ export class WaferLock extends Mechanism {
     const p = this.pose();
     const x0 = L.face;
     const x1 = L.x1;
-    const ang = (this.turn * Math.PI) / 2;
+    const ang = (turnEase(this.turn) * Math.PI) / 2;
     const inKey = this.insert > 0 && p.inKeyway;
     // housing
     g.fillStyle = C.shell;
@@ -173,35 +178,38 @@ export class WaferLock extends Mechanism {
     text(g, '溝（ブローチ）', x1 - 4, L.plugTop - L.chan - 8, { size: 9, color: C.sub, align: 'right' });
 
     const axis = (L.plugTop + L.plugBot) / 2;
-    const s = Math.max(0.03, Math.cos(ang));
+    const r = rot(axis, ang);
     const showHl = this.feedback && this.vis !== 'hidden';
     const P = L.plugBot - L.plugTop;
 
-    // plug
+    // plug, projected as a turning cylinder
     g.save();
-    g.fillStyle = C.plug;
-    g.fillRect(x0, L.plugTop, x1 - x0, P);
-    const sh = g.createLinearGradient(0, L.plugTop, 0, L.plugBot);
-    sh.addColorStop(0, 'rgba(255,255,255,0.18)');
-    sh.addColorStop(0.5, 'rgba(255,255,255,0)');
-    sh.addColorStop(1, 'rgba(0,0,0,0.3)');
-    g.fillStyle = sh;
-    g.fillRect(x0, L.plugTop, x1 - x0, P);
-    g.translate(0, axis);
-    g.scale(1, s);
-    g.translate(0, -axis);
-    g.fillStyle = C.cavity;
-    g.fillRect(x0, L.bladeTop - 6, x1 - x0 - 12, L.bladeH + 12);
-    this.xs.forEach((x) => {
-      g.fillRect(x - L.waferW / 2 - 2, L.plugTop, L.waferW + 4, P);
+    g.beginPath();
+    g.rect(x0, L.plugTop, x1 - x0, P);
+    g.clip();
+    drawPlugBody(g, r, x0, x1, L.plugTop, L.plugBot);
+    layer(g, r, 0, () => {
+      g.fillStyle = C.cavity;
+      g.fillRect(x0, L.bladeTop - 6, x1 - x0 - 12, L.bladeH + 12);
+      this.xs.forEach((x) => g.fillRect(x - L.waferW / 2 - 2, L.plugTop, L.waferW + 4, P));
     });
-    if (inKey) this.key.drawKey(g, p.ox, L.bladeTop + p.dy, { editing: false, showCode: false });
-    // wafers
+    g.restore();
+    if (inKey) {
+      g.save();
+      g.beginPath();
+      g.rect(x0, L.plugTop, x1 - x0, P);
+      g.rect(0, L.plugTop - 60, x0 - 12, P + 120);
+      g.clip();
+      this.key.drawKey3D(g, r, p.ox, L.bladeTop + p.dy);
+      g.restore();
+    }
+    // wafers: brass plates that turn with the plug
+    const blocking = showHl || (this.blocked && this.vis !== 'hidden');
     this.xs.forEach((x, i) => {
       const [side, c] = this.cfg.wafers[i];
       const top = this.waferTop(i, p.ox, p.inKeyway);
       const wx = x - L.waferW / 2;
-      const bad = showHl && this.status[i] !== 'ok';
+      const bad = blocking && this.status[i] !== 'ok';
       // window
       let wt: number;
       let wb: number;
@@ -213,24 +221,40 @@ export class WaferLock extends Mechanism {
         wb = P - v;
         wt = Math.max(6, wb - L.bladeH - 8);
       }
-      g.fillStyle = hgrad(g, wx, wx + L.waferW, bad ? [[0, '#7f1d1d'], [0.4, '#fca5a5'], [1, '#991b1b']] : [[0, C.brassDark], [0.35, C.brassLight], [1, C.brassDark]]);
-      g.beginPath();
-      g.rect(wx, top, L.waferW, P);
-      g.rect(wx + 3, top + wt, L.waferW - 6, wb - wt);
-      g.fill('evenodd');
-      // contact edge accent
-      g.fillStyle = side === 't' ? '#fff3c4' : '#bfe6ff';
-      g.fillRect(wx + 3, side === 't' ? top + wt : top + wb - 2, L.waferW - 6, 2);
-      // spring indicator
-      g.strokeStyle = C.spring;
-      g.lineWidth = 1.2;
-      const sy = side === 't' ? top + 6 : top + P - 6;
-      g.beginPath();
-      g.moveTo(wx + L.waferW + 1, sy);
-      for (let k = 0; k < 4; k++) g.lineTo(wx + L.waferW + (k % 2 ? 1 : 5), sy + (side === 't' ? 3 : -3) * (k + 1));
-      g.stroke();
+      const frame = () => {
+        g.beginPath();
+        g.rect(wx, top, L.waferW, P);
+        g.rect(wx + 3, top + wt, L.waferW - 6, wb - wt);
+      };
+      extrude(
+        g,
+        r,
+        -7,
+        7,
+        () => {
+          frame();
+          g.fillStyle = bad ? '#7f1d1d' : C.brassDark;
+          g.fill('evenodd');
+        },
+        bad ? '#7f1d1d' : C.brassDark,
+        () => {
+          g.fillStyle = hgrad(g, wx, wx + L.waferW, bad ? [[0, '#7f1d1d'], [0.4, '#fca5a5'], [1, '#991b1b']] : [[0, C.brassDark], [0.35, C.brassLight], [1, C.brassDark]]);
+          frame();
+          g.fill('evenodd');
+          // contact edge accent
+          g.fillStyle = side === 't' ? '#fff3c4' : '#bfe6ff';
+          g.fillRect(wx + 3, side === 't' ? top + wt : top + wb - 2, L.waferW - 6, 2);
+          // spring indicator
+          g.strokeStyle = C.spring;
+          g.lineWidth = 1.2;
+          const sy = side === 't' ? top + 6 : top + P - 6;
+          g.beginPath();
+          g.moveTo(wx + L.waferW + 1, sy);
+          for (let k = 0; k < 4; k++) g.lineTo(wx + L.waferW + (k % 2 ? 1 : 5), sy + (side === 't' ? 3 : -3) * (k + 1));
+          g.stroke();
+        },
+      );
     });
-    g.restore();
 
     // plug boundaries (shear lines)
     const success = this.phase === 'turning' || this.phase === 'open';
@@ -247,7 +271,7 @@ export class WaferLock extends Mechanism {
     g.restore();
     text(g, '内筒の外周', x0 + 2, L.plugBot + L.chan + 10, { size: 9, color: success ? C.ok : C.shear, align: 'left' });
 
-    if (showHl) {
+    if (blocking) {
       this.xs.forEach((x, i) => {
         if (this.status[i] === 'ok') return;
         const top = this.waferTop(i, p.ox, p.inKeyway);
@@ -287,16 +311,15 @@ export class WaferLock extends Mechanism {
       drawCover(g, x0 - 12, L.houseTop - 20, x1 - x0 + 24, L.houseBot - L.houseTop + 40, '内部は見えない');
     }
 
-    // cam at the back
-    const camX = x1 + 14;
-    g.save();
-    g.fillStyle = C.steel;
-    const camLen = 46 * Math.cos(ang);
-    g.fillRect(camX - 5, axis, 10, camLen + 4);
-    g.fillRect(camX - 5, axis - 4, 10, 8);
-    g.restore();
+    // cam at the back turns with the plug and retracts the bolt
+    drawPin3D(g, r, x1 + 14, 10, axis - 4, axis + 46, 'steel', false);
 
-    drawFrontInset(g, W - 46, 40, 20, ang);
+    drawFrontView(g, W - 38, 40, ang, {
+      kind: 'wafer',
+      inKey,
+      state: !inKey ? 'rest' : this.phase === 'turnFail' || showHl ? 'high' : 'set',
+      success,
+    });
     if (this.phase === 'open') drawOpenStamp(g, W / 2, 228, this.openT);
     if (!inKey && this.insert > 0) this.key.drawKey(g, p.ox, L.bladeTop + p.dy, { editing: false, showCode: false });
 

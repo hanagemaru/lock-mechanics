@@ -1,4 +1,5 @@
 import { C, type G, pinFill, spring, rr, easeInOut, seg, lerp } from '../core/draw';
+import { type Rot, drawBore3D, drawPin3D } from '../core/turn3d';
 
 /** Pose of a key traveling from the editor into the keyway, driven by insert∈[0,1]. */
 export function keyPose(insert: number, tipX: number, faceX: number, editDY: number) {
@@ -107,4 +108,17 @@ export function drawChamberPlug(g: G, c: ChamberDraw, plugBottom: number) {
   g.lineWidth = 0.8;
   g.stroke();
   g.restore();
+}
+
+/** pin bore in the plug section face, from the shear line down into the keyway */
+export function drawPlugBore3D(g: G, r: Rot, c: ChamberDraw, keywayTop: number) {
+  drawBore3D(g, r, c.x, c.width + 4, c.shear, keywayTop + 2);
+}
+
+/** key pin (and an under-lifted driver) projected with the plug rotation */
+export function drawChamberPlug3D(g: G, r: Rot, c: ChamberDraw) {
+  const w = c.width;
+  const keyTop = c.tip - c.keyLen;
+  if (keyTop > c.shear) drawPin3D(g, r, c.x, w, c.shear - 6, keyTop, c.hl ? 'red' : 'steel', false);
+  drawPin3D(g, r, c.x, w, Math.max(keyTop, c.shear - 30), c.tip, 'brass', true);
 }

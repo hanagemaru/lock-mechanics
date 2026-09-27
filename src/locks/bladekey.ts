@@ -1,4 +1,5 @@
 import { C, type G, text, arrow, clamp } from '../core/draw';
+import { type Rot, extrude, KEY_T } from '../core/turn3d';
 import { sfx } from '../core/sfx';
 
 /**
@@ -95,6 +96,42 @@ export class BladeKey {
     g.closePath();
   }
 
+  bowPath(g: G, ox: number, topY: number) {
+    const h = this.bladeH;
+    const bx = this.bladeX0 + ox;
+    g.beginPath();
+    g.moveTo(bx + 2, topY - 6);
+    g.lineTo(bx - 14, topY - 6);
+    g.arc(bx - 52, topY + h / 2, 44, -0.35, Math.PI * 2 - 0.35 + 0.0001, false);
+    g.lineTo(bx - 14, topY + h + 6);
+    g.lineTo(bx + 2, topY + h + 6);
+    g.closePath();
+  }
+
+  /** the key as a solid with thickness, turned with the plug */
+  drawKey3D(g: G, r: Rot, ox: number, topY: number) {
+    const side = g.createLinearGradient(0, topY - 50, 0, topY + this.bladeH + 50);
+    side.addColorStop(0, '#f4f6f9');
+    side.addColorStop(1, '#aab3be');
+    extrude(
+      g,
+      r,
+      -KEY_T / 2,
+      KEY_T / 2,
+      () => {
+        this.path(g, ox, topY);
+        g.fillStyle = side;
+        g.fill();
+        this.bowPath(g, ox, topY);
+      },
+      side,
+      () => {
+        // darker back rim so the thickness reads as an edge
+        this.drawKey(g, ox, topY, { editing: false, showCode: false });
+      },
+    );
+  }
+
   drawKey(g: G, ox: number, topY: number, opts: { editing: boolean; showCode: boolean; alpha?: number } = { editing: false, showCode: false }) {
     const h = this.bladeH;
     g.save();
@@ -103,13 +140,7 @@ export class BladeKey {
     const bx = this.bladeX0 + ox;
     const by = topY + h / 2;
     g.fillStyle = this.metal(g, topY - 30, topY + h + 30);
-    g.beginPath();
-    g.moveTo(bx + 2, topY - 6);
-    g.lineTo(bx - 14, topY - 6);
-    g.arc(bx - 52, by, 44, -0.35, Math.PI * 2 - 0.35 + 0.0001, false);
-    g.lineTo(bx - 14, topY + h + 6);
-    g.lineTo(bx + 2, topY + h + 6);
-    g.closePath();
+    this.bowPath(g, ox, topY);
     g.fill();
     g.strokeStyle = C.keyNickelDark;
     g.lineWidth = 1;

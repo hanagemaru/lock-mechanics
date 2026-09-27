@@ -1,7 +1,8 @@
 import { Mechanism, type EvalResult, type Host, type Visibility, W } from '../core/mechanism';
 import { C, type G, text, rr, vgrad, clamp, easeInOut } from '../core/draw';
 import { sfx } from '../core/sfx';
-import { drawChamberShell, drawChamberPlug, type PinStatus } from './pinview';
+import { drawChamberShell, drawChamberPlug3D, drawPlugBore3D, type PinStatus } from './pinview';
+import { rot, layer, extrude, drawPlugBody, turnEase, turnSounds } from '../core/turn3d';
 import { drawOpenStamp, drawGridBg, drawDivider, drawCover, drawGauge } from './housing';
 
 export interface DimpleCfg {
@@ -93,6 +94,10 @@ export class DimpleLock extends Mechanism {
     if (Math.floor(prev * 10) !== Math.floor(cur * 10)) sfx.tick(0.6, 0.05);
   }
 
+  protected onTurnStep(prev: number, cur: number) {
+    turnSounds(prev, cur);
+  }
+
   holeAt(x: number, y: number) {
     for (let r = 0; r < 2; r++)
       for (let c = 0; c < this.cfg.cols; c++) {
@@ -127,12 +132,13 @@ export class DimpleLock extends Mechanism {
     const ox = this.keyOx();
     const x0 = 36;
     const x1 = W - 36;
-    const s = Math.max(0.03, Math.cos((this.turn * Math.PI) / 2));
-    ROWS.forEach((R, r) => {
+    const ang = (turnEase(this.turn) * Math.PI) / 2;
+    const blocking = showHl || (this.blocked && this.vis !== 'hidden');
+    ROWS.forEach((R, r0) => {
       g.fillStyle = C.shell;
       g.fillRect(x0, R.top - 6, x1 - x0, R.shear - R.top + 6);
       this.cfg.pins.forEach(([pr, pc], k) => {
-        if (pr !== r) return;
+        if (pr !== r0) return;
         drawChamberShell(g, {
           x: this.xs[pc],
           top: R.top,
@@ -141,47 +147,49 @@ export class DimpleLock extends Mechanism {
           keyLen: this.keyLens[k],
           driverLen: 18,
           width: 14,
-          status: showHl ? this.status[k] : null,
-          hl: showHl && this.status[k] !== 'ok',
+          status: blocking ? this.status[k] : null,
+          hl: blocking && this.status[k] !== 'ok',
         });
       });
+      const r = rot((R.shear + R.bot) / 2, ang);
+      const chamber = (k: number) => {
+        const [, pc] = this.cfg.pins[k];
+        return { x: this.xs[pc], top: R.top, shear: R.shear, tip: this.tip(k), keyLen: this.keyLens[k], driverLen: 18, width: 14, hl: blocking && this.status[k] === 'low' };
+      };
+      const mine = this.cfg.pins.map((p, k) => (p[0] === r0 ? k : -1)).filter((k) => k >= 0);
       g.save();
       g.beginPath();
       g.rect(x0, R.shear, x1 - x0, R.bot - R.shear);
       g.clip();
-      g.fillStyle = C.plug;
-      g.fillRect(x0, R.shear, x1 - x0, R.bot - R.shear);
-      const axis = (R.shear + R.bot) / 2;
-      g.translate(0, axis);
-      g.scale(1, s);
-      g.translate(0, -axis);
-      g.fillStyle = C.cavity;
-      g.fillRect(x0, R.face - 4, x1 - x0 - 10, R.bot - R.face);
-      this.cfg.pins.forEach(([pr, pc], k) => {
-        if (pr !== r) return;
-        drawChamberPlug(
-          g,
-          { x: this.xs[pc], top: R.top, shear: R.shear, tip: this.tip(k), keyLen: this.keyLens[k], driverLen: 18, width: 14, hl: showHl && this.status[k] === 'low' },
-          R.bot + 6,
-        );
+      drawPlugBody(g, r, x0, x1, R.shear, R.bot);
+      layer(g, r, 0, () => {
+        g.fillStyle = C.cavity;
+        g.fillRect(x0, R.face - 4, x1 - x0 - 10, R.bot - R.face);
       });
+      mine.forEach((k) => drawPlugBore3D(g, r, chamber(k), R.face - 4));
       if (this.insert > 0) {
-        // key edge-on with dimples along this row
-        g.fillStyle = vgrad(g, R.face, R.bot, [
-          [0, C.keyNickelLight],
-          [1, C.keyNickelDark],
-        ]);
-        g.beginPath();
-        g.moveTo(x0 - 40 + ox, R.bot);
-        g.lineTo(x0 - 40 + ox, R.face);
-        for (let u = x0 - 40; u <= this.tipX; u += 1) {
-          const d = this.surfDepth(r, u + ox, ox) ?? 0;
-          g.lineTo(u + ox, R.face + Math.min(d, R.bot - R.face - 4));
-        }
-        g.lineTo(this.tipX + ox, R.bot);
-        g.closePath();
-        g.fill();
+        // key edge-on with dimples along this row, as a solid with thickness
+        const keyPath = () => {
+          g.beginPath();
+          g.moveTo(x0 - 40 + ox, R.bot);
+          g.lineTo(x0 - 40 + ox, R.face);
+          for (let u = x0 - 40; u <= this.tipX; u += 1) {
+            const d = this.surfDepth(r0, u + ox, ox) ?? 0;
+            g.lineTo(u + ox, R.face + Math.min(d, R.bot - R.face - 4));
+          }
+          g.lineTo(this.tipX + ox, R.bot);
+          g.closePath();
+        };
+        extrude(g, r, -6, 6, keyPath, '#dfe4ea', () => {
+          g.fillStyle = vgrad(g, R.face, R.bot, [
+            [0, C.keyNickelLight],
+            [1, C.keyNickelDark],
+          ]);
+          keyPath();
+          g.fill();
+        });
       }
+      mine.forEach((k) => drawChamberPlug3D(g, r, chamber(k)));
       g.restore();
       const success = this.phase === 'turning' || this.phase === 'open';
       g.save();
@@ -193,7 +201,7 @@ export class DimpleLock extends Mechanism {
       g.lineTo(x1 + 4, R.shear);
       g.stroke();
       g.restore();
-      text(g, r === 0 ? 'A列（上側のピン）' : 'B列（奥側のピン）', x0, R.top - 16, { size: 10, color: r === 0 ? C.brassLight : '#7dd3fc', align: 'left' });
+      text(g, r0 === 0 ? 'A列（上側のピン）' : 'B列（奥側のピン）', x0, R.top - 16, { size: 10, color: r0 === 0 ? C.brassLight : '#7dd3fc', align: 'left' });
       if (this.phase === 'edit' && this.vis === 'full') {
         drawGauge(g, x0 + 2, x1 - 4, Array.from({ length: L.maxD + 1 }, (_, k) => R.bot - 4 - (R.face + k * L.step - R.shear)));
       }

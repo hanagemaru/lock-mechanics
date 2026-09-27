@@ -41,6 +41,8 @@ export abstract class Mechanism {
   /** show feedback from the last failed turn */
   feedback = false;
   time = 0;
+  /** 0..1 jolt when the turn is blocked; decays quickly (host applies it) */
+  shake = 0;
 
   insertDur = 1.25;
   removeDur = 0.8;
@@ -77,6 +79,11 @@ export abstract class Mechanism {
   /** called while turning with previous and new turn value */
   protected onTurnStep(_prev: number, _cur: number): void {}
 
+  /** true from the moment a failed turn catches until it springs back */
+  get blocked() {
+    return this.phase === 'turnFail' && this.pt >= this.failDur * 0.45;
+  }
+
   get editable() {
     return this.phase === 'edit';
   }
@@ -111,6 +118,7 @@ export abstract class Mechanism {
   update(dt: number) {
     this.time += dt;
     this.pt += dt;
+    this.shake = Math.max(0, this.shake - dt * 3.5);
     switch (this.phase) {
       case 'inserting': {
         const prev = this.insert;
@@ -160,6 +168,7 @@ export abstract class Mechanism {
           if (this.pt - dt < a) {
             sfx.thunk();
             buzz(30);
+            this.shake = 1;
           }
         } else this.turn = stop * (1 - clamp((this.pt - a - hold) / (d - a - hold), 0, 1));
         this.onTurnStep(prev, this.turn);

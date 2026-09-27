@@ -2,8 +2,9 @@ import { Mechanism, type EvalResult, type Host, type Visibility, W } from '../co
 import { C, type G, text, easeOutBack } from '../core/draw';
 import { sfx } from '../core/sfx';
 import { BladeKey } from './bladekey';
-import { keyPose, drawChamberShell, drawChamberPlug, type PinStatus } from './pinview';
-import { drawPadlock, drawFrontInset, drawOpenStamp, drawCover, drawGridBg, drawDivider, drawGauge } from './housing';
+import { keyPose, drawChamberShell, drawChamberPlug3D, drawPlugBore3D, type PinStatus } from './pinview';
+import { rot, layer, drawPlugBody, turnEase, turnSounds } from '../core/turn3d';
+import { drawPadlock, drawFrontView, drawOpenStamp, drawCover, drawGridBg, drawDivider, drawGauge } from './housing';
 
 export interface PinCfg {
   /** correct cut depth for each chamber (0..maxDepth) */
@@ -129,6 +130,10 @@ export class PinLock extends Mechanism {
     return null;
   }
 
+  protected onTurnStep(prev: number, cur: number) {
+    turnSounds(prev, cur);
+  }
+
   pointerDown(x: number, y: number) {
     if (!this.editable) return;
     this.key.down(x, y, 0, PIN.editTop, this.sp);
@@ -146,7 +151,7 @@ export class PinLock extends Mechanism {
   }
 
   get angle() {
-    return (this.turn * Math.PI) / 2;
+    return (turnEase(this.turn) * Math.PI) / 2;
   }
 
   draw(g: G) {
@@ -164,7 +169,7 @@ export class PinLock extends Mechanism {
     // shell & plug background
     g.fillStyle = C.shell;
     g.fillRect(x0, PIN.chamberTop - 6, x1 - x0, PIN.shear - PIN.chamberTop + 6);
-    const showHl = this.feedback && this.vis !== 'hidden';
+    const showHl = (this.feedback || this.blocked) && this.vis !== 'hidden';
     const tips = this.xs.map((_, i) => this.tipY(i, p.ox, p.inKeyway));
     const stat = (i: number) => (showHl ? this.status[i] : null);
     const inKey = this.insert > 0 && p.inKeyway;
@@ -183,46 +188,46 @@ export class PinLock extends Mechanism {
       }),
     );
 
-    // plug with rotation projection
-    const axis = (PIN.shear + PIN.plugBottom) / 2;
-    const s = Math.max(0.03, Math.cos(this.angle));
+    // plug, projected as a turning cylinder
+    const r = rot((PIN.shear + PIN.plugBottom) / 2, this.angle);
+    const plugClip = () => {
+      g.beginPath();
+      g.rect(x0, PIN.shear, x1 - x0, PIN.plugBottom - PIN.shear);
+    };
     g.save();
-    g.beginPath();
-    g.rect(x0, PIN.shear, x1 - x0, PIN.plugBottom - PIN.shear);
+    plugClip();
     g.clip();
-    g.fillStyle = C.plug;
-    g.fillRect(x0, PIN.shear, x1 - x0, PIN.plugBottom - PIN.shear);
-    // cylinder shading
-    const sh = g.createLinearGradient(0, PIN.shear, 0, PIN.plugBottom);
-    sh.addColorStop(0, 'rgba(255,255,255,0.18)');
-    sh.addColorStop(0.5, 'rgba(255,255,255,0)');
-    sh.addColorStop(1, 'rgba(0,0,0,0.3)');
-    g.fillStyle = sh;
-    g.fillRect(x0, PIN.shear, x1 - x0, PIN.plugBottom - PIN.shear);
-    g.translate(0, axis);
-    g.scale(1, s);
-    g.translate(0, -axis);
-    // keyway
-    g.fillStyle = C.cavity;
-    g.fillRect(x0, PIN.bladeTop - 8, x1 - x0 - 14, PIN.bladeH + 10);
-    this.xs.forEach((x, i) =>
-      drawChamberPlug(
-        g,
-        {
-          x,
-          top: PIN.chamberTop,
-          shear: PIN.shear,
-          tip: tips[i],
-          keyLen: this.keyLens[i],
-          driverLen: PIN.driverLen,
-          width: PIN.pinW,
-          status: stat(i),
-          hl: showHl && this.status[i] === 'low',
-        },
-        PIN.plugBottom,
-      ),
-    );
-    if (inKey) this.key.drawKey(g, p.ox, PIN.bladeTop + p.dy, { editing: false, showCode: false });
+    drawPlugBody(g, r, x0, x1, PIN.shear, PIN.plugBottom);
+    layer(g, r, 0, () => {
+      g.fillStyle = C.cavity;
+      g.fillRect(x0, PIN.bladeTop - 8, x1 - x0 - 14, PIN.bladeH + 10);
+    });
+    const chamber = (x: number, i: number) => ({
+      x,
+      top: PIN.chamberTop,
+      shear: PIN.shear,
+      tip: tips[i],
+      keyLen: this.keyLens[i],
+      driverLen: PIN.driverLen,
+      width: PIN.pinW,
+      status: stat(i),
+      hl: showHl && this.status[i] === 'low',
+    });
+    this.xs.forEach((x, i) => drawPlugBore3D(g, r, chamber(x, i), PIN.bladeTop - 8));
+    g.restore();
+    if (inKey) {
+      // the key (and its bow outside the lock) turns with the plug
+      g.save();
+      plugClip();
+      g.rect(0, PIN.shear - 70, x0 - 8, PIN.plugBottom - PIN.shear + 140);
+      g.clip();
+      this.key.drawKey3D(g, r, p.ox, PIN.bladeTop + p.dy);
+      g.restore();
+    }
+    g.save();
+    plugClip();
+    g.clip();
+    this.xs.forEach((x, i) => drawChamberPlug3D(g, r, chamber(x, i)));
     g.restore();
 
     // shear line
@@ -239,7 +244,7 @@ export class PinLock extends Mechanism {
     g.restore();
     text(g, 'シアライン', x1 - 2, PIN.shear - 8, { size: 9, color: success ? C.ok : C.shear, align: 'right' });
 
-    // highlight blocked chambers at shear line
+    // highlight blocked chambers at shear line (also flashes the moment it catches)
     if (showHl) {
       this.xs.forEach((x, i) => {
         if (this.status[i] === 'ok') return;
@@ -272,7 +277,12 @@ export class PinLock extends Mechanism {
     g.fillStyle = '#556476';
     g.fillRect(x0 - 8, PIN.shear - 2, 8, PIN.plugBottom - PIN.shear + 4);
 
-    drawFrontInset(g, W - 46, 44, 20, this.angle + (this.phase === 'turnFail' ? 0 : 0));
+    drawFrontView(g, W - 38, 44, this.angle, {
+      kind: 'pin',
+      inKey,
+      state: !inKey ? 'rest' : this.phase === 'turnFail' || showHl ? this.status.includes('high') ? 'high' : 'low' : 'set',
+      success,
+    });
     if (this.phase === 'open') drawOpenStamp(g, W / 2, 200, this.openT);
     if (!inKey) {
       // key traveling / in editor
