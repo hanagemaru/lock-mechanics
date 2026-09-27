@@ -116,6 +116,19 @@ export class PinLock extends Mechanism {
     });
   }
 
+  coach(): string | null {
+    if (!this.cfg.ghost) return null;
+    if (this.phase === 'edit') {
+      const okN = this.cfg.code.filter((c, i) => this.key.top[i] === c).length;
+      if (this.key.top.some((c, i) => c > this.cfg.code[i])) return '削りすぎた所がある… 下の「新しいブランク」でやり直そう';
+      if (okN === this.cfg.code.length) return '全部の点線枠がシアラインに揃った！「差し込む」を押そう';
+      if (this.key.pristine()) return '① 鍵の山（ピンの真下）をタップすると1段削れる。上下ドラッグでまとめて削れる';
+      return `② 点線枠（下ピン）の上端が黄色いシアラインに揃うまで削ろう（${okN}/${this.cfg.code.length}）`;
+    }
+    if (this.phase === 'inserted' && !this.feedback) return '③ 下ピンの境目がシアラインに揃っている。「回す」を押そう！';
+    return null;
+  }
+
   pointerDown(x: number, y: number) {
     if (!this.editable) return;
     this.key.down(x, y, 0, PIN.editTop, this.sp);

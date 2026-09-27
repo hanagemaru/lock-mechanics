@@ -6,7 +6,7 @@ let muted = false;
 let noiseBuf: AudioBuffer | null = null;
 
 function ctx(): AudioContext | null {
-  if (muted) return null;
+  if (muted || typeof window === 'undefined') return null;
   if (!ac) {
     const AC = window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
     if (!AC) return null;

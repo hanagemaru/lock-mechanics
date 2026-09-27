@@ -83,9 +83,10 @@ button {
   aspect-ratio: 1;
 }
 .logo {
-  font-size: 34px;
+  font-size: clamp(26px, 8.4vw, 38px);
   font-weight: 900;
-  letter-spacing: 0.08em;
+  letter-spacing: 0.06em;
+  white-space: nowrap;
   margin: 4px 0 0;
   background: linear-gradient(180deg, var(--brass2), var(--brass));
   -webkit-background-clip: text;

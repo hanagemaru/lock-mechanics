@@ -61,6 +61,11 @@ export abstract class Mechanism {
   /** true while the key has no modification (so "new blank" is pointless) */
   abstract isPristine(): boolean;
 
+  /** optional coaching line for tutorial stages (called on state changes) */
+  coach(): string | null {
+    return null;
+  }
+
   pointerDown(_x: number, _y: number): void {}
   pointerMove(_x: number, _y: number): void {}
   pointerUp(_x: number, _y: number): void {}

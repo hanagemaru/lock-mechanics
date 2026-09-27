@@ -1,0 +1,10 @@
+{
+  "name": "Lock Mechanics — 鍵のしくみパズル",
+  "short_name": "Lock Mechanics",
+  "start_url": "./",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#0b1118",
+  "theme_color": "#0b1118",
+  "icons": [{ "src": "icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any maskable" }]
+}

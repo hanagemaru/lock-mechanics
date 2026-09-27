@@ -163,12 +163,14 @@ export class BladeKey {
         const m = marks[i];
         if (m === 'imp') {
           g.save();
-          g.strokeStyle = 'rgba(20,20,25,0.85)';
-          g.lineWidth = 2;
+          const yy = ey + (edge === 'top' ? 2 : -2);
+          g.fillStyle = 'rgba(15,15,20,0.9)';
           g.beginPath();
-          g.moveTo(x + ox - 4, ey + (edge === 'top' ? 1.5 : -1.5));
-          g.lineTo(x + ox + 4, ey + (edge === 'top' ? 1.5 : -1.5));
-          g.stroke();
+          g.ellipse(x + ox, yy, 6, 2.6, 0, 0, Math.PI * 2);
+          g.fill();
+          g.fillStyle = 'rgba(255,255,255,0.35)';
+          g.fillRect(x + ox - 4, yy - 0.5, 8, 1);
+          if (opts.editing) text(g, '跡', x + ox, edge === 'top' ? topY - 14 : topY + h + 14, { size: 10, color: '#cbd5e1', weight: '700' });
           g.restore();
         } else if (m && opts.editing) {
           const col = m === 'ok' ? C.ok : m === 'high' ? C.warn : C.bad;

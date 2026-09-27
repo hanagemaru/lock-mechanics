@@ -270,8 +270,12 @@ function playScreen(st: Stage) {
   };
   let mech: Mechanism = createMechanism(st, host);
 
+  let lastCoach = '';
   function refresh() {
     renderCounters();
+    const coach = mech.coach();
+    if (coach && coach !== lastCoach) say(coach, coach.includes('！') ? 'ok' : coach.includes('削りすぎ') ? 'warn' : 'info');
+    lastCoach = coach ?? '';
     const p = mech.phase;
     bBlank.innerHTML = `<span>新しい<br>ブランク</span>`;
     bBlank.disabled = p !== 'edit' || mech.isPristine() || (!!st.maxBlanks && blanks >= st.maxBlanks) || over;
@@ -351,6 +355,7 @@ function playScreen(st: Stage) {
     const [x, y] = pt(e);
     mech.pointerMove(x, y);
   });
+  cv.addEventListener('contextmenu', (e) => e.preventDefault());
   const up = (e: PointerEvent) => {
     if (e.pointerId !== pid) return;
     pid = null;

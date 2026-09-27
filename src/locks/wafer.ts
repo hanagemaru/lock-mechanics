@@ -129,6 +129,13 @@ export class WaferLock extends Mechanism {
     });
   }
 
+  coach(): string | null {
+    if (!this.cfg.ghost || this.phase !== 'edit') return null;
+    const okN = this.cfg.wafers.filter(([, c], i) => this.cutOf(i) === c).length;
+    if (okN === this.cfg.wafers.length) return 'すべてのウェハーが内筒の中に収まった！「差し込む」を押そう';
+    return `点線枠（ウェハー）が上下の黄色い線の内側にぴったり収まるまで削ろう（${okN}/${this.cfg.wafers.length}）`;
+  }
+
   pointerDown(x: number, y: number) {
     if (!this.editable) return;
     this.key.down(x, y, 0, L.editTop, this.sp);
