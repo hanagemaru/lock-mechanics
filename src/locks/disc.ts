@@ -119,6 +119,19 @@ export class DiscLock extends Mechanism {
       const gate = -this.cfg.code[i] * STEP; // rest gate angle (deg from top, cw+)
       const cy = L.discY;
       const R = this.r;
+      if (this.vis === 'full') {
+        g.save();
+        for (let k = 0; k <= MAXC; k++) {
+          const a = ((-k * STEP) * Math.PI) / 180 - Math.PI / 2;
+          g.strokeStyle = k === 0 ? 'rgba(255,204,51,0.8)' : 'rgba(255,204,51,0.3)';
+          g.lineWidth = k === 0 ? 2 : 1;
+          g.beginPath();
+          g.moveTo(cx + Math.cos(a) * (R + 2), cy + Math.sin(a) * (R + 2));
+          g.lineTo(cx + Math.cos(a) * (R + 7), cy + Math.sin(a) * (R + 7));
+          g.stroke();
+        }
+        g.restore();
+      }
       g.save();
       g.translate(cx, cy);
       g.rotate(((rot + gate) * Math.PI) / 180);

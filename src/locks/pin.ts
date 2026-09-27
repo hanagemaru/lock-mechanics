@@ -3,7 +3,7 @@ import { C, type G, text, easeOutBack } from '../core/draw';
 import { sfx } from '../core/sfx';
 import { BladeKey } from './bladekey';
 import { keyPose, drawChamberShell, drawChamberPlug, type PinStatus } from './pinview';
-import { drawPadlock, drawFrontInset, drawOpenStamp, drawCover, drawGridBg, drawDivider } from './housing';
+import { drawPadlock, drawFrontInset, drawOpenStamp, drawCover, drawGridBg, drawDivider, drawGauge } from './housing';
 
 export interface PinCfg {
   /** correct cut depth for each chamber (0..maxDepth) */
@@ -21,8 +21,8 @@ export const PIN = {
   plugBottom: 312,
   bodyBottom: 332,
   bladeTop: 246,
-  bladeH: 50,
-  step: 6,
+  bladeH: 56,
+  step: 7,
   editTop: 452,
   driverLen: 30,
   pinW: 18,
@@ -254,6 +254,11 @@ export class PinLock extends Mechanism {
     }
 
     if (this.phase === 'edit' && this.cfg.ghost) this.drawGhost(g);
+    if (this.phase === 'edit' && !this.cfg.ghost && this.vis === 'full') {
+      const rest = PIN.plugBottom - 12;
+      const ys = Array.from({ length: this.key.maxDepth + 1 }, (_, k) => rest - (PIN.bladeTop + k * PIN.step - PIN.shear));
+      drawGauge(g, x0 + 4, x1 - 16, ys);
+    }
 
     if (this.vis === 'window') {
       drawCover(g, x0, PIN.chamberTop - 6, x1 - x0, PIN.shear - 16 - (PIN.chamberTop - 6));

@@ -1,7 +1,7 @@
 import { Mechanism, type EvalResult, type Host, type Visibility, W } from '../core/mechanism';
 import { C, type G, text, rr, seg, clamp, vgrad, hgrad, arrow } from '../core/draw';
 import { sfx } from '../core/sfx';
-import { drawOpenStamp, drawGridBg, drawDivider, drawCover } from './housing';
+import { drawOpenStamp, drawGridBg, drawDivider, drawCover, drawGauge } from './housing';
 
 export interface LeverCfg {
   /** correct cut depth for each lever step */
@@ -14,13 +14,13 @@ const L = {
   boltY: 44,
   stumpY: 176,
   keyY: 282,
-  sMax: 44,
-  step: 5,
+  sMax: 56,
+  step: 6,
   maxD: 5,
   gate: 12,
   shaftY: 388,
   bitTop: 398,
-  scale: 2.2,
+  scale: 1.8,
 };
 
 type St = 'ok' | 'high' | 'low';
@@ -156,7 +156,7 @@ export class LeverLock extends Mechanism {
     ]);
     rr(g, bx, L.boltY - 14, W - 60, 28, 5);
     g.fill();
-    text(g, 'ボルト →', bx + 60, L.boltY, { size: 12, color: '#1d2530', weight: '800' });
+    text(g, 'ボルト →（下の突起＝スタンプが全レバーを貫通）', bx + 12, L.boltY, { size: 11, color: '#1d2530', weight: '800', align: 'left' });
     g.fillStyle = '#2a2016';
     g.fillRect(W - 22, L.boltY - 20, 22, 40);
     // stump post
@@ -168,7 +168,6 @@ export class LeverLock extends Mechanism {
     g.lineTo(bx + 30, L.stumpY - 40);
     g.stroke();
     g.setLineDash([]);
-    text(g, 'スタンプ（ボルトの突起）は全レバーを貫通', W / 2 + 20, L.boltY + 30, { size: 10, color: C.sub });
 
     this.xs.forEach((cx, i) => {
       const lift = inKey ? this.lift(i, th) : 0;
@@ -249,8 +248,14 @@ export class LeverLock extends Mechanism {
     g.lineTo(W - 8, L.stumpY);
     g.stroke();
     g.restore();
-    text(g, 'スタンプの通り道', 10, L.stumpY - 12, { size: 9, color: C.shear, align: 'left' });
+    g.fillStyle = 'rgba(15,23,32,0.85)';
+    rr(g, 4, L.stumpY - 26, 92, 16, 6);
+    g.fill();
+    text(g, 'スタンプの通り道', 10, L.stumpY - 18, { size: 9, color: C.shear, align: 'left' });
 
+    if (this.phase === 'edit' && this.vis === 'full' && !this.cfg.gates) {
+      drawGauge(g, 14, W - 24, Array.from({ length: L.maxD + 1 }, (_, k) => L.keyY - (L.sMax - k * L.step - L.gate)));
+    }
     if (this.vis === 'window') {
       drawCover(g, 6, L.stumpY - 90, W - 12, 72);
       drawCover(g, 6, L.stumpY + 26, W - 12, L.keyY - 18 - (L.stumpY + 26));

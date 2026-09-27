@@ -2,7 +2,7 @@ import { Mechanism, type EvalResult, type Host, type Visibility, W } from '../co
 import { C, type G, text, rr, vgrad, clamp, easeInOut } from '../core/draw';
 import { sfx } from '../core/sfx';
 import { drawChamberShell, drawChamberPlug, type PinStatus } from './pinview';
-import { drawOpenStamp, drawGridBg, drawDivider, drawCover } from './housing';
+import { drawOpenStamp, drawGridBg, drawDivider, drawCover, drawGauge } from './housing';
 
 export interface DimpleCfg {
   cols: number;
@@ -194,6 +194,9 @@ export class DimpleLock extends Mechanism {
       g.stroke();
       g.restore();
       text(g, r === 0 ? 'A列（上側のピン）' : 'B列（奥側のピン）', x0, R.top - 16, { size: 10, color: r === 0 ? C.brassLight : '#7dd3fc', align: 'left' });
+      if (this.phase === 'edit' && this.vis === 'full') {
+        drawGauge(g, x0 + 2, x1 - 4, Array.from({ length: L.maxD + 1 }, (_, k) => R.bot - 4 - (R.face + k * L.step - R.shear)));
+      }
       if (this.vis === 'window') {
         drawCover(g, x0, R.top - 6, x1 - x0, R.shear - 12 - (R.top - 6));
         drawCover(g, x0, R.shear + 12, x1 - x0, R.face - 6 - (R.shear + 12));

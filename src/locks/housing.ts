@@ -150,3 +150,24 @@ export function drawDivider(g: G, y: number, w: number, label: string) {
   g.fillRect(w / 2 - tw / 2, y - 8, tw, 16);
   text(g, label, w / 2, y, { size: 10, color: C.sub });
 }
+
+/** Faint measuring lines so that discrete depth levels can be counted. ys[0] = level 0. */
+export function drawGauge(g: G, x0: number, x1: number, ys: number[], label = true) {
+  g.save();
+  g.strokeStyle = 'rgba(255,204,51,0.3)';
+  g.lineWidth = 1;
+  g.setLineDash([2, 3]);
+  ys.forEach((y) => {
+    g.beginPath();
+    g.moveTo(x0, y + 0.5);
+    g.lineTo(x1, y + 0.5);
+    g.stroke();
+  });
+  g.restore();
+  if (label && ys.length > 1) {
+    const gap = Math.abs(ys[1] - ys[0]);
+    ys.forEach((y, k) => {
+      if (gap >= 9 || k === 0 || k === ys.length - 1) text(g, String(k), x1 + 7, y, { size: 8, color: 'rgba(255,204,51,0.7)' });
+    });
+  }
+}

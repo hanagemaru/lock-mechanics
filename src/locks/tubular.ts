@@ -2,7 +2,7 @@ import { Mechanism, type EvalResult, type Host, type Visibility, W } from '../co
 import { C, type G, text, clamp, vgrad } from '../core/draw';
 import { sfx } from '../core/sfx';
 import { drawChamberShell, drawChamberPlug, type PinStatus } from './pinview';
-import { drawOpenStamp, drawGridBg, drawDivider, drawCover } from './housing';
+import { drawOpenStamp, drawGridBg, drawDivider, drawCover, drawGauge } from './housing';
 
 export interface TubularCfg {
   code: number[];
@@ -205,6 +205,10 @@ export class TubularLock extends Mechanism {
     g.restore();
     text(g, '円周上のピンを1列に展開した断面', W / 2, 12, { size: 10, color: C.sub });
 
+    if (this.phase === 'edit' && this.vis === 'full') {
+      const rest = L.plugBot - 6;
+      drawGauge(g, x0 + 2, x1 - 4, Array.from({ length: L.maxD + 1 }, (_, k) => rest - (L.faceTop + k * L.step - L.shear)));
+    }
     if (this.vis === 'window') {
       drawCover(g, x0, L.chTop - 8, x1 - x0, L.shear - 14 - (L.chTop - 8));
       drawCover(g, x0, L.shear + 14, x1 - x0, L.plugBot - L.shear - 14);
