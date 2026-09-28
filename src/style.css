@@ -584,3 +584,14 @@ button {
   outline: 2px solid var(--brass2);
   outline-offset: 2px;
 }
+
+.check-badge {
+  margin: 8px auto 0;
+  padding: 3px 10px;
+  border: 1px solid #fb923c;
+  border-radius: 999px;
+  color: #fb923c;
+  font-size: 12px;
+  font-weight: 700;
+  width: fit-content;
+}

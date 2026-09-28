@@ -10,7 +10,8 @@ import { randomStage } from './random';
 
 const app = document.getElementById('app')!;
 sfx.setMuted(save.muted);
-const UNLOCK_ALL = new URLSearchParams(location.search).has('unlock');
+const UNLOCK_BUILD = import.meta.env.VITE_UNLOCK_ALL === '1';
+const UNLOCK_ALL = UNLOCK_BUILD || new URLSearchParams(location.search).has('unlock');
 
 function h<K extends keyof HTMLElementTagNameMap>(tag: K, attrs: Record<string, unknown> = {}, ...kids: (Node | string | null | undefined | false)[]) {
   const el = document.createElement(tag);
@@ -79,6 +80,7 @@ function titleScreen() {
     cv,
     h('div', { class: 'logo' }, 'LOCK MECHANICS'),
     h('div', { class: 'logo-sub' }, '鍵 の し く み パ ズ ル'),
+    UNLOCK_BUILD && h('div', { class: 'check-badge' }, '確認用：全ステージ解放版'),
     h(
       'p',
       { class: 'title-copy' },

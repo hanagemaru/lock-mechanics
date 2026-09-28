@@ -1,4 +1,5 @@
-const KEY = 'lock-mechanics:v1';
+// the all-unlocked check build keeps its own progress so it never touches real saves
+const KEY = import.meta.env.VITE_UNLOCK_ALL === '1' ? 'lock-mechanics:v1:unlocked' : 'lock-mechanics:v1';
 
 export interface Save {
   stars: Record<string, number>;

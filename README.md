@@ -62,6 +62,17 @@ tests/stages.test.ts 全ステージの解答可能性テスト
 
 ## 公開
 
+### プレビュー（ブラウザで直接開ける1ファイル版）
+
+```bash
+npm run build:preview   # preview/index.html と preview/unlocked.html を出力
+```
+
+`preview/` はコミットしておき、raw.githack.com 経由でスマホのブラウザから開けます。
+`unlocked.html` は全ステージ解放の確認用（進行データも通常版と別に保存）。
+
+### GitHub Pages
+
 `main` ブランチへの push で GitHub Actions がビルドし GitHub Pages へデプロイします
 （リポジトリの Settings → Pages → Source を「GitHub Actions」に設定してください）。
 `dist/` は相対パスで出力されるので、任意の静的ホスティングにそのまま置けます。
